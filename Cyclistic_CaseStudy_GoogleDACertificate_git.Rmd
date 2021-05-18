@@ -1,0 +1,692 @@
+---
+title: 'Case Study: Cyclistic bike-share'
+subtitle: 'Google Data Analytics Professional Certificate'
+author: "Felipe Altermann^[For further information or to get in touch, find me on [**Github**](https://github.com/fealt) or [**LinkedIn**](https://www.linkedin.com/in/felipealtermann/).]"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  github_document:
+    html_preview: false
+    highlight: textmate
+    includes:
+      in_header: header.html
+    theme: readable
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+    toc_float:
+      collapsed: yes
+      smooth_scroll: no
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<br>
+  
+# How do annual members and casual riders use Cyclistic bikes differently?
+
+* This analysis is the **Case Study 1 (Cyclistic)**^[In order to answer the key business questions, I followed the steps of the data analysis process: ask, prepare, process, analyze, share, and act.] from the *Google Data Analytics Certificate*, originally based on the case study ` ‘Sophisticated, Clear, and Polished’: Divvy and Data Visualization `, written by **Kevin Hartman**^[**Kevin Hartman** is ‘Global Head of Analyst Development’ at **Google** and also a teacher at the [**Google Data Analytics Professional Certificate**](https://grow.google/dataanalytics/).] and found [here](https://artscience.blog/home/divvy-dataviz-case-study).
+
+# Scenario
+
+* In 2016, Cyclistic, a fictional bike-share company in Chicago/US, launched a successful bike-share offering. Since then, the program has grown to a fleet of 5,824 bicycles that are geotracked and locked into a network of 692 stations across Chicago.
+
+* Until now, Cyclistic’s marketing strategy relied on building general awareness and appealing to broad consumer segments. One approach that helped make these things possible was the flexibility of its pricing plans: single-ride passes, full-day passes, and annual memberships.
+  + Customers who purchase single-ride or full-day passes are referred to as **casual users**.
+  + Customers who purchase annual memberships are Cyclistic **registered members**.
+ 
+## Business Task
+
+* The director of marketing Ms. Lily Moreno believes the company’s future success depends on **maximizing the number of annual memberships**.
+
+* Our team wants to understand how casual riders and annual members use Cyclistic bikes differently, analyzing Cyclistic historical bike trip data to identify trends. **From these insights**, a new marketing strategy will be designed to convert casual riders into annual members.
+
+* Three questions will guide the future marketing program:
+  + **How do annual members and casual riders use Cyclistic bikes differently?**
+  + Why would casual riders buy Cyclistic annual memberships?
+  + How can Cyclistic use digital media to influence casual riders to become members?
+
+* Moreno has **assigned me the first question to answer**.
+
+## Key stackeholders
+
+* **Lily Moreno**, Director of Marketing and my manager. Moreno is responsible for the development of campaigns and initiatives to promote the bike-share program.
+
+* **Cyclistic marketing analytics team**: A team of data analysts who are responsible for collecting, analyzing, and reporting data that helps guide Cyclistic marketing strategy.
+
+* **Cyclistic executive team**: The notoriously detail-oriented executive team will decide whether to approve the recommended marketing program.
+
+<br>
+
+# Sources
+
+* Previous 12 months (April 2020 to March 2021) of Cyclistic’s historical trip data. The datasets have a different name because Cyclistic is a fictional company; original data can be found [here](https://divvy-tripdata.s3.amazonaws.com/index.html).
+
+* Used **R** packages: dplyr, geosphere, ggplot2, ggpubr, ggridges, hexbin, hrbrthemes, kableExtra, knitr, lubridate, tidyverse, viridis and wesanderson.
+
+<br>
+
+# Setting up Cyclistic environment
+
+* Loading packages.
+
+```{r warning=FALSE, message=FALSE}
+library(dplyr)
+library(geosphere)
+library(ggplot2)
+library(ggpubr)
+library(ggridges)
+library(hexbin)
+library(hrbrthemes)
+library(kableExtra)
+library(knitr)
+library(lubridate)
+library(tidyverse)
+library(viridis)
+library(wesanderson)
+```
+
+* Collecting data
+
+```{r warning=FALSE, message=FALSE}
+# Set directory
+getwd()
+setwd("/Users/felipe/Divvy")
+# Upload Divvy dataset
+trip_data_2020_04 <- read_csv("202004-divvy-tripdata.csv")
+trip_data_2020_05 <- read_csv("202005-divvy-tripdata.csv")
+trip_data_2020_06 <- read_csv("202006-divvy-tripdata.csv")
+trip_data_2020_07 <- read_csv("202007-divvy-tripdata.csv")
+trip_data_2020_08 <- read_csv("202008-divvy-tripdata.csv")
+trip_data_2020_09 <- read_csv("202009-divvy-tripdata.csv")
+trip_data_2020_10 <- read_csv("202010-divvy-tripdata.csv")
+trip_data_2020_11 <- read_csv("202011-divvy-tripdata.csv")
+trip_data_2020_12 <- read_csv("202012-divvy-tripdata.csv")
+trip_data_2021_01 <- read_csv("202101-divvy-tripdata.csv")
+trip_data_2021_02 <- read_csv("202102-divvy-tripdata.csv")
+trip_data_2021_03 <- read_csv("202103-divvy-tripdata.csv")
+```
+
+<br>
+
+# Wrangle data and combine into a single file
+
+## Compare column names {.tabset .tabset-fade .tabset-pills}
+
+### One month example
+
+```{r}
+colnames(trip_data_2020_04)
+```
+
+### All 12 months dataframes
+
+```{r}
+colnames(trip_data_2020_04)
+colnames(trip_data_2020_05)
+colnames(trip_data_2020_06)
+colnames(trip_data_2020_07)
+colnames(trip_data_2020_08)
+colnames(trip_data_2020_09)
+colnames(trip_data_2020_10)
+colnames(trip_data_2020_11)
+colnames(trip_data_2020_12)
+colnames(trip_data_2021_01)
+colnames(trip_data_2021_02)
+colnames(trip_data_2021_03)
+```
+
+## {- .leave-tabset}
+
+* Key findings:
+  + Columns **names** in each collected month **are consistent**; so it will not be necessary to rename any.
+
+## Inspect dataframes to look for incongruencies {.tabset .tabset-fade .tabset-pills}
+
+### One month example
+
+```{r}
+str(trip_data_2020_04)
+```
+
+### All 12 months dataframes
+
+```{r echo=TRUE}
+str(trip_data_2020_04)
+str(trip_data_2020_05)
+str(trip_data_2020_06)
+str(trip_data_2020_07)
+str(trip_data_2020_08)
+str(trip_data_2020_09)
+str(trip_data_2020_10)
+str(trip_data_2020_11)
+str(trip_data_2020_12)
+str(trip_data_2021_01)
+str(trip_data_2021_02)
+str(trip_data_2021_03)
+```
+
+## {- .leave-tabset}
+
+* Key findings:
+  + No incongruencies have been spoted.
+
+## Join all data frames into one big data frame
+
+* Convert start_station_id and end_station_id to character so that they can stack correctly.
+
+```{r echo=TRUE}
+trip_data_2020_04 <- mutate(trip_data_2020_04, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_05 <- mutate(trip_data_2020_05, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_06 <- mutate(trip_data_2020_06, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_07 <- mutate(trip_data_2020_07, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_08 <- mutate(trip_data_2020_08, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_09 <- mutate(trip_data_2020_09, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_10 <- mutate(trip_data_2020_10, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+trip_data_2020_11 <- mutate(trip_data_2020_11, start_station_id = as.character(start_station_id),
+                            end_station_id = as.character(end_station_id))
+```
+
+* Stack **individual** monthly data frames **into one** big data frame:
+
+```{r echo=TRUE}
+all_trips <- bind_rows(trip_data_2020_04, trip_data_2020_05, trip_data_2020_06, trip_data_2020_07, trip_data_2020_08, trip_data_2020_09, trip_data_2020_10, trip_data_2020_11, trip_data_2020_12, trip_data_2021_01, trip_data_2021_02, trip_data_2021_03)
+```
+
+<br>
+
+# Inspect the new data frame
+
+* Since Cyclistic's 12 months data frame is huge, glimpse() and kable() functions are a great way to quickly display and examine our data.
+
+```{r}
+glimpse(all_trips)
+```
+
+```{r}
+kable(head(all_trips, 10)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), font_size = 7, full_width = F)
+```
+
+* Key findings:
+  + Original data bank has **`r format(nrow(all_trips), big.mark = ",")` rows** with **`r floor((length(which(all_trips$member_casual == "member")) / nrow(all_trips)) * 100)`% registered members** and **`r ceiling((length(which(all_trips$member_casual == "casual")) / nrow(all_trips)) * 100)`% casual users**;
+  + Some columns will not be needed for further analysis, like ride_id;
+  + Other columns will be used to run calculations only: start_lat, start_lng, end_lat and end_lng to find out ride distance.
+
+<br>
+
+# Clean up and add data to prepare for analysis
+
+## Create new columns to provide additional opportunities to aggregate the data
+
+* Add columns that list the date, month, day, year and weekday.
+
+```{r echo=TRUE}
+all_trips$date <- as.Date(all_trips$started_at)
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+```
+
+* Add calculation for "ride_length" (in seconds) and "ride_distance" (in km) in new columns.
+
+```{r echo=TRUE}
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+all_trips$ride_distance <- distGeo(matrix(c(all_trips$start_lng, all_trips$start_lat), ncol = 2),
+                                      matrix(c(all_trips$end_lng, all_trips$end_lat), ncol = 2))/1000
+all_trips$ride_distance <- round(all_trips$ride_distance, digits = 2)
+```
+
+* Inspect the new structure of the columns.
+
+```{r echo=TRUE}
+str(all_trips)
+```
+
+## Create new data frame since data is being removed
+
+* Convert "ride_length" and "ride_distance" to numeric to run calculations on the data.
+
+```{r echo=TRUE}
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+all_trips$ride_distance <- as.numeric(as.character(all_trips$ride_distance))
+```
+
+* Check number of rows with NAs.
+
+```{r echo=TRUE}
+format(sum(!complete.cases(all_trips[-1])), big.mark = ",")
+```
+
+* **Remove entries:**
+    1. When bikes were taken out of docks and checked for quality by Divvy or `  ride_length ` is negative;
+    2. Drop all NA's;
+    3. Remove unnecessary columns for further data analysis.
+
+* Create **new data frame version (v2)**.
+
+```{r echo=TRUE}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+all_trips_v2 <- drop_na(all_trips_v2)
+all_trips_v2 <- all_trips_v2 %>%
+  select(-c(ride_id, started_at, start_station_name, start_station_id, ended_at, end_station_name, end_station_id, start_lat, start_lng, end_lat, end_lng))
+```
+
+* Rename "member_casual" column to "user_type".
+
+```{r echo=TRUE}
+all_trips_v2 <- rename(all_trips_v2, user_type = member_casual)
+```
+
+* Fix order of "days_of_week".
+
+```{r echo=TRUE}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+```
+
+## Check for bad data
+
+```{r}
+count(all_trips, ride_length == 0 & start_station_id == end_station_id)
+```
+
+```{r}
+count(all_trips_v2, ride_length == 0)
+```
+
+```{r}
+bad_data <- as.data.frame(table(all_trips_v2$ride_length))
+bad_data$Var1 <- as.integer(bad_data$Var1)
+bad_data$Freq <- as.double(bad_data$Freq)
+```
+
+```{r}
+bad_data_plot <- data.frame(
+  time = c("1 sec to 2 min", "2 min to 2 hr", "2 hr and more"),
+  perc = as.double(c(
+    with(bad_data, round(100 * sum(Freq[Var1 < 120]) / sum(Freq), 2)),
+    with(bad_data, round(100 * sum(Freq[Var1 > 120 & Var1 < 7200]) / sum(Freq), 2)),
+    with(bad_data, round(100 * sum(Freq[Var1 > 7200]) / sum(Freq), 2))))
+)
+bad_data_plot$time <- factor(bad_data_plot$time, levels = c("1 sec to 2 min", "2 min to 2 hr", "2 hr and more"))
+ggplot(bad_data_plot, aes(time, perc, fill = time)) +
+  geom_bar(width=.6, stat="identity") +
+  geom_text(aes(label = paste0(perc,"%")), vjust = -0.8, size = 5, position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = wes_palette("Moonrise3")) +
+  guides(fill=FALSE) +
+  xlab(" ") + ylab(" ") +
+  ggtitle("Almost 96% of users ride in between 2 minutes up to 2 hours long") +
+  theme_ipsum() +
+  theme(
+    plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.2, vjust = 4),
+    plot.margin = margin(1, 1, 1, 1, "cm"),
+    plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+    axis.text = element_text(size = rel(1.1))
+  )
+```
+
+* Key findings:
+  + `r bad_data_plot$perc[1]`% of all rides lasted less than 2 minutes long; `r bad_data_plot$perc[3]`% were longer than 2 hours;
+  + Yet with `r bad_data_plot$perc[2]`% the vast majority of users rented a bike in between the above time frame.
+  
+## Check for outliers {.tabset .tabset-fade .tabset-pills}
+
+### Outlier 1
+
+```{r}
+aggregate(bad_data["Freq"], list(cut(bad_data$Var1, (0:1)*120, right = TRUE)), sum)
+```
+
+```{r}
+outlier_1 <- aggregate(bad_data["Freq"], list(cut(bad_data$Var1, (0:83)*300, right = TRUE)), sum)
+ggplot(outlier_1, aes(Group.1, Freq, fill = Freq)) +
+  geom_jitter() +
+  scale_x_discrete(drop = FALSE) +
+  guides(fill=FALSE) +
+  xlab(" ") + ylab(" ") +
+  ggtitle("Number of trips, with rides aggregated every 5 minutes") +
+  theme_ipsum() +
+  xlab("5 in 5 minutes grid") +
+  theme(
+    plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.15, vjust = 4),
+    plot.margin = margin(1, 1, 1, 1, "cm"),
+    plot.background = element_rect(fill = "#fff9f5", colour = "#f2dfce", size = 4),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = rel(1.1))
+  ) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+### Outlier 2
+
+```{r}
+outlier_2 <- aggregate(bad_data["Freq"], list(cut(bad_data$Var1, (0:45)*60, right = TRUE)), sum)
+ggplot(outlier_2, aes(Group.1, Freq)) +
+  geom_col(position = "dodge") +
+  guides(fill=FALSE) +
+  xlab(" ") + ylab(" ") +
+  ggtitle("Number of trips, with rides aggregated every 1 minute") +
+  theme_ipsum() +
+  xlab("1 in 1 minute grid") +
+  theme(
+    plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.15, vjust = 4),
+    plot.margin = margin(1, 1, 1, 1, "cm"),
+    plot.background = element_rect(fill = "#fff9f5", colour = "#f2dfce", size = 4),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = rel(1.1))
+  ) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+## {- .leave-tabset}
+
+* Key findings:
+  + Data frame has some trips with zero second duration as well as same start and end Stations, meaning users quit renting a bike.
+
+<br>
+
+N.B.: To help me with a particular code in the last section, I asked my fellow **R** coders @ stack**overflow**: ` How to sum one column values and group them by intervals from another column. ` Great answers can be found [here](https://stackoverflow.com/questions/67370796/).
+
+<br>
+
+# Final data frame for analysis
+
+* Based on the findings and after discussing the subject with my manager Ms. Lily Moreno, **final decision** was to focus our further analysis on data from **users** with **trips longer than 2 minutes and shorter than 2 hours**.
+
+* Create **new data frame (v3)** since data is being removed
+
+```{r}
+all_trips_v3 <- all_trips_v2 %>%
+  subset(ride_length > 120 & ride_length < 7201)
+```
+
+```{r Inspect the new data frame v3}
+kable(head(all_trips_v3, 10)) %>%
+  kable_paper("hover", "striped", font_size = 16, full_width = F)
+```
+
+## User and bike types {.tabset .tabset-fade .tabset-pills}
+
+* Cyclistic has 2 different types of clients: **`r floor((length(which(all_trips_v3$user_type == "casual")) / nrow(all_trips_v3)) * 100)`% casual users** and **`r ceiling((length(which(all_trips_v3$user_type == "member")) / nrow(all_trips_v3)) * 100)`% registered members**.
+* Clients could choose between 3 available types of bike:
+  + **casual users** rented: `r signif((length(which(all_trips_v3$rideable_type == "classic_bike" & all_trips_v3$user_type == "casual")) / nrow(all_trips_v3)) * 100, 3)`% classic, **`r signif((length(which(all_trips_v3$rideable_type == "docked_bike" & all_trips_v3$user_type == "casual")) / nrow(all_trips_v3)) * 100, 3)`% docked** and `r signif((length(which(all_trips_v3$rideable_type == "electric_bike" & all_trips_v3$user_type == "casual")) / nrow(all_trips_v3)) * 100, 3)`% electric bikes;
+  + **registered members** rented: `r signif((length(which(all_trips_v3$rideable_type == "classic_bike" & all_trips_v3$user_type == "member")) / nrow(all_trips_v3)) * 100, 3)`% classic, **`r signif((length(which(all_trips_v3$rideable_type == "docked_bike" & all_trips_v3$user_type == "member")) / nrow(all_trips_v3)) * 100, 3)`% docked** and `r signif((length(which(all_trips_v3$rideable_type == "electric_bike" & all_trips_v3$user_type == "member")) / nrow(all_trips_v3)) * 100, 3)`% electric bikes.
+
+### User types plot
+
+```{r}
+all_trips_v3 %>%
+  group_by(user_type) %>%
+  summarise(number_of_users = n(), .groups = 'drop') %>%
+  arrange(user_type) %>%
+  ggplot(aes(user_type, number_of_users, fill = user_type)) +
+  geom_bar(width=.5, position = "stack", stat = "identity") +
+  ggtitle("60% of clients are registered members") +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+        axis.text = element_text(size = rel(0.8)),
+        legend.title = element_blank()) +
+  scale_fill_manual(labels = c("Casual users", "Registered members"), values = alpha(c("#69c6ff", "#81A88D"), 0.7)) +
+  scale_y_continuous(labels = scales::comma)
+```
+
+### Bike types plot
+
+```{r}
+all_trips_v3 %>%
+  group_by(user_type, rideable_type) %>%
+  summarise(number_of_users = n(), .groups = 'drop') %>%
+  arrange(user_type, rideable_type) %>%
+  ggplot(aes(user_type, number_of_users, fill = rideable_type)) +
+  geom_bar(width=.5, position = "stack", stat = "identity") +
+  ggtitle("Docked bikes are the favorite") +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  scale_fill_manual(values = wes_palette("GrandBudapest1")) +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+        axis.text = element_text(size = rel(0.8)),
+        legend.title = element_blank())
+```
+
+## {- .leave-tabset}
+
+* Key findings:
+  + There was no surprise that more than 3/4 of rentals are docked bikes, since they are an upgraded version of the simplest and most affordable classic option;
+  + Electric bikes usage lead to an extra cost in a per-minute basis, so it has very few rentals.
+  + Casual users vs. Registered members:
+    - 40% of clients are casual users and the potential riders to convert into annual members;
+    - Marketing campaign should focus on **docked bikes**, as those are by far the most rented type.
+
+## Number of rides
+
+* **`r format(nrow(all_trips_v3), big.mark = ",")`** rides have been performed by users.
+
+```{r}
+all_trips_v3 %>% 
+  group_by(user_type, day_of_week) %>%
+  summarise(number_of_rides = n(), .groups = 'drop') %>%
+  arrange(user_type, day_of_week) %>%
+  ggplot(aes(day_of_week, number_of_rides, fill = user_type)) +
+  geom_col(width=.7, position = "dodge") +
+  theme_ipsum() +
+  geom_text(aes(label = format(number_of_rides, big.mark = ",")),
+    angle = 90, position = position_dodge(0.7), vjust = 0.5, hjust = 1.2) +
+  xlab("") + ylab("") +
+  ggtitle("Total clients per weekday") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+    plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+    plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+    axis.text = element_text(size = rel(0.8)),
+    legend.title = element_blank(),
+    legend.position = "bottom") +
+  scale_fill_manual(labels = c("Casual users", "Registered members"), values = alpha(c("#69c6ff", "#81A88D"), 0.7)) +
+  scale_y_continuous(breaks = c(0, 100000, 200000, 300000), minor_breaks = seq(0, 1, 1), labels = scales::comma, limits = c(min(0), max(310000)))
+```
+
+* Key findings:
+  + Saturday busiest day with Sunday second for both rider types;
+  + Casual users:
+    - Very similar number of rides during working days, but with a 25% increase on Fridays;
+    - Peak on Saturdays and Sundays, indicating that there are different types of riders on business days (rent to commute) and weekends (rent also for leisure).
+  + Registered members:
+    - Cyclistic have at least 240k+ daily rentals from registered members;
+    - Number of rides grow from Mondays to Wednesdays and stay on this level up to Saturdays, dropping 18% on Sundays.
+
+## Length of rides
+
+* Focus on data from riders with rents taking from 2 minutes up to 2 hours long.
+
+```{r}
+all_trips_v3 %>%
+  ggplot(aes(user_type, ride_length, fill = user_type)) +
+  geom_violin() +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  ggtitle("Shorter trips for most registered members") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+        axis.text = element_text(size = rel(0.8)),
+        legend.position="none") +
+  scale_fill_manual(values = alpha(c("#69c6ff", "#81A88D"), 0.7)) +
+  scale_y_time(name = "length in hours", labels = function(l) strftime(l, '%H:%M'), breaks = c(120, 600, 1200, 1800, 2700, 3600, 5400, 7200), minor_breaks = seq(0, 1, 1))
+```
+
+* Key findings:
+  + Casual users:
+    - Even though most rentals take around 15 to 30 min, the graph displays that many users perform also longer trips.
+  + Registered members:
+    - Violin plot shows city riders characteristics: most trips are short in time (around 15 minutes long).
+
+* Weekly average duration
+
+```{r}
+all_trips_v3 %>% 
+  group_by(user_type, day_of_week) %>%
+  summarise(average_duration = mean(ride_length), .groups = 'drop') %>%
+  arrange(user_type, day_of_week) %>%
+  ggplot(aes(day_of_week, average_duration, fill = user_type)) +
+  geom_col(width=.7, position = "dodge") +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  ggtitle("Ride average duration per weekday") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+        axis.text = element_text(size = rel(0.8)),
+        legend.title = element_blank(),
+        legend.position = "bottom") +
+  scale_fill_manual(labels = c("Casual users", "Registered members"), values = alpha(c("#69c6ff", "#81A88D"), 0.7)) +
+  scale_y_time(name = "length in minutes", labels = function(l) strftime(l, '%M'), breaks = c(0, 300, 600, 900, 1200, 1500, 1800), minor_breaks = seq(0, 1, 1))
+```
+
+* Key findings:
+  + Casual users:
+    - Lower average on Wednesdays and Thursdays; growing from Fridays with peak on Sundays, then falling on Mondays.
+  + Registered members:
+    - Business days average duration is almost uniform; small increase on weekends.
+
+## Distance traveled {.tabset .tabset-fade .tabset-pills}
+
+* Average distance by `  user_type ` and ` rideable_type `.
+
+### Average distance boxplot
+
+```{r}
+all_trips_v3 %>%
+  group_by(rideable_type, user_type, ride_distance) %>%
+  summarise(average_distance = mean(ride_distance), .groups = 'drop') %>%
+  arrange(user_type, rideable_type) %>%
+  ggplot(aes(x = user_type, y = average_distance, fill = rideable_type)) +
+  geom_boxplot(width=.7, outlier.color = "grey50") +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  ggtitle("Mean distance traveled") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        axis.text = element_text(size = rel(0.8)),
+        legend.title = element_blank()) +
+  scale_y_continuous(name = "distance in km", breaks = c(0, 5, 10, 15, 20, 25, 30))
+```
+
+### Boxplot summary data
+
+```{r}
+bp <- all_trips_v3 %>%
+  group_by(rideable_type, user_type, ride_distance) %>%
+  summarise(average_distance = mean(ride_distance), .groups = 'drop') %>%
+  arrange(user_type, rideable_type) %>%
+  ggplot(aes(x = user_type, y = average_distance, fill = rideable_type)) +
+  geom_boxplot()
+layer_data(bp)
+```
+
+## {- .leave-tabset}
+
+* Key findings:
+  + Classic and electric bikes: both rider types with very similar results.
+  + Docked bikes:
+    - Casual users: perform longer trips;
+    - Registered members: perform shorter trips.
+
+<br>
+
+* Ride distance x Weekday
+
+```{r}
+all_trips_v3 %>%
+  ggplot(aes(x = day_of_week, y = ride_distance, fill = day_of_week)) +
+  geom_violin() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6, option="A") +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  ggtitle("Ride distance for both rider types") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+        axis.text = element_text(size = rel(0.8)),
+        legend.position="none") +
+  scale_y_continuous(name = "distance in km", breaks = c(0, 5, 10, 15, 20, 25, 30))
+```
+
+* Ride distance x Weekday **with filter**
+
+```{r}
+all_trips_v3 %>%
+  filter(ride_distance < 5.5) %>%
+  ggplot(aes(day_of_week, ride_distance, fill = user_type)) +
+  geom_violin() +
+  theme_ipsum() +
+  xlab("") + ylab("") +
+  ggtitle("Filtering distance < 5.5 km: almost same daily pattern") +
+  theme(plot.title = element_text(face = "bold", color = "#003366", size = 16, hjust = 0.1, vjust = 2),
+        plot.margin = margin(0.7, 0.7, 0.7, 0.7, "cm"),
+        plot.background = element_rect(fill = "grey98", colour = "grey90", size = 4),
+        axis.text = element_text(size = rel(0.8)),
+        legend.position = "bottom",
+        legend.title = element_blank()) +
+  scale_fill_manual(
+    labels = c("Casual users", "Registered members"),
+    values = alpha(c("#69c6ff", "#81A88D"), 0.7)) +
+  scale_y_continuous(name = "distance in km", breaks = c(0, 1, 2, 3, 4, 5), minor_breaks = seq(0, 10, 0.25))
+```
+
+* Key findings:
+  + Above the 2 km distance mark the pattern is very similar for both rider types.
+  + Casual users:
+    - Many rides up to 250 meters long and most of them around 750 meters.
+  + Registered members:
+    - Few rides up to 250 meters long but a huge increase after that value.
+
+<br>
+
+# Answering the question
+
+* **Top facts reviewed:**
+<br>
+  + Almost 96% of clients ride in between 2 minutes up to 2 hours long;
+  + Bad data like zero minute rides affect the average length calculation (they have been excluded from the data bank); zero distance rides do not, because it means clients rented a bike in a particular Station and also returned it there;
+  + 60% of riders are already registered members and 40% are casual users – and the potential riders to convert into annual members;
+  + More than 75% of rentals used docked bikes – the best cost vs. quality choice; classic bikes second and electric bikes bottom due to it's higher per minute charge;
+  + Business days:
+    - Less casual users, who take longer rides;
+    - Almost 50% more registered members than casuals use the service, but rides are shorter;
+  + Weekends: week rentals peak is on Saturdays, when almost 300k casual users and also 300k registered members ride, dropping around 18% on Sundays.
+<br>
+<br>
+* **How do annual members and casual riders use Cyclistic bikes differently?**
+<br>
+  + Casual users perform longer trips **` median = 9,20 km `** than members **` median = 7,65 km `**;
+  + Saturdays are the busiest day of the week, with almost **` 300k `** rides for each user type;
+  + On Sundays rents drop by around **` 22% `** for casual  users and **` 18% `** for registered members;
+  + Sundays have more rides from registered members: it shows that they enjoy Cyclistic the whole week long;
+  + There are at least around **` 130k `** casual users and **` 240k `** registered members riding in a daily basis;
+  + No difference concerning rented bike types: vast majority **` – 96% – `** choose docked bikes, classic is second and electric third.
+<br>
+<br>
+* **Top three recommendations to convert casual riders into members:**
+  1. Marketing campaigns should focus on docked bikes.
+  2. Special offer for casual riders who perform short trips on business days – between 2 and 20 minutes long –, already a common pattern among registered members.
+  3. Events at main Stations on Saturdays and Sundays, as around 40% of rides take place on weekends. Cyclistic staff to engage with casual riders.
+
+<br>
+
+# Notes
+
+* **Many thanks for taking my analysis into consideration.**
